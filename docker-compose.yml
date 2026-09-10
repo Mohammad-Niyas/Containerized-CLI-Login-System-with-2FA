@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
@@ -12,15 +10,33 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # Named volume for persisting data across container restarts
       - postgres_data:/var/lib/postgresql/data
-      # Mount migration script to execute on first container initialization
       - ./migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth_cli
+    stdin_open: true
+    tty: true
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: auth_user
+      DB_PASSWORD: auth_password
+      DB_NAME: auth_db
+      SESSION_TIMEOUT_MINUTES: "15"
+      MAX_FAILED_ATTEMPTS: "5"
+      LOCKOUT_DURATION_MINUTES: "15"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
